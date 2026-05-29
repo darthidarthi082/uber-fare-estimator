@@ -1,295 +1,411 @@
-import { useState, useEffect, useRef } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uber Fare Estimator · India</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black:#0a0a0a; --card:#111114; --border:rgba(255,255,255,0.08);
+    --yellow:#FFD000; --green:#22d25f; --red:#ff4d4d; --text:#f0f0f0; --muted:#6b7280;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Space Grotesk',sans-serif;background:var(--black);color:var(--text);min-height:100vh;overflow-x:hidden}
+  .hero-bg{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+  .hero-bg svg{position:absolute;bottom:-20px;right:-40px;width:520px;opacity:0.065;filter:drop-shadow(0 0 60px rgba(255,208,0,0.3));animation:floatAuto 6s ease-in-out infinite}
+  @keyframes floatAuto{0%,100%{transform:translateY(0)rotate(-2deg)}50%{transform:translateY(-18px)rotate(1deg)}}
+  .grid-lines{position:absolute;inset:0;background-image:linear-gradient(rgba(255,208,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,208,0,0.03) 1px,transparent 1px);background-size:60px 60px}
+  .glow-orb{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(255,208,0,0.07) 0%,transparent 70%);bottom:-200px;right:-100px}
+  .container{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:24px 20px 60px}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+  .logo-pill{background:var(--yellow);color:#000;font-weight:700;font-size:13px;letter-spacing:.06em;padding:6px 14px;border-radius:100px}
+  .header-title{font-size:22px;font-weight:700;letter-spacing:-.5px}
+  .header-sub{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px}
+  .header-badge{margin-left:auto;font-size:11px;color:var(--green);border:1px solid rgba(34,210,95,0.3);padding:4px 10px;border-radius:100px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:6px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:680px){.main-grid{grid-template-columns:1fr}}
+  .col-left,.col-right{display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;transition:border-color .2s}
+  .card:hover{border-color:rgba(255,208,0,0.15)}
+  .card-label{font-size:10px;font-weight:600;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+  .card-label span{font-size:14px}
+  .input-group{position:relative;margin-bottom:10px}
+  .input-group:last-child{margin-bottom:0}
+  .input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;z-index:1}
+  .input-icon.pickup{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .input-icon.drop{background:var(--red);box-shadow:0 0 8px var(--red)}
+  .route-line{position:absolute;left:17.5px;top:40px;width:1px;height:20px;background:linear-gradient(var(--green),var(--red));opacity:.4}
+  input[type=text]{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:13px 14px 13px 34px;color:var(--text);font-size:14px;font-family:'Space Grotesk',sans-serif;outline:none;transition:border-color .2s,background .2s}
+  input[type=text]:focus{border-color:rgba(255,208,0,0.5);background:rgba(255,208,0,0.04)}
+  input[type=text]::placeholder{color:var(--muted)}
+  .suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a1a1f;border:1px solid var(--border);border-radius:12px;overflow:hidden;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none}
+  .suggestion-item{padding:11px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:flex-start;gap:10px;transition:background .15s}
+  .suggestion-item:hover{background:rgba(255,208,0,0.06)}
+  .sug-icon{font-size:14px;opacity:.7;flex-shrink:0;margin-top:2px}
+  .sug-name{color:var(--text);font-weight:500}
+  .sug-detail{color:var(--muted);font-size:11px;margin-top:1px}
+  .btn-estimate{width:100%;background:var(--yellow);color:#000;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:700;font-family:'Space Grotesk',sans-serif;cursor:pointer;letter-spacing:.02em;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
+  .btn-estimate:hover:not(:disabled){background:#ffe033;transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,208,0,.35)}
+  .btn-estimate:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .trip-strip{display:none;background:rgba(255,208,0,0.05);border:1px solid rgba(255,208,0,0.15);border-radius:12px;padding:12px 16px;gap:20px;align-items:center;flex-wrap:wrap}
+  .trip-strip.show{display:flex}
+  .trip-stat{text-align:center}
+  .trip-stat .val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--yellow)}
+  .trip-stat .lbl{font-size:10px;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:.08em}
+  .trip-divider{width:1px;height:30px;background:var(--border)}
+  #map{border-radius:16px;overflow:hidden;height:260px;border:1px solid var(--border);display:none}
+  .map-placeholder{height:260px;border-radius:16px;background:rgba(255,255,255,0.02);border:1px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px}
+  .map-placeholder .map-icon{font-size:32px;opacity:.4}
+  .rides-grid{display:flex;flex-direction:column;gap:8px}
+  .ride-option{display:flex;align-items:center;padding:13px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:all .18s;gap:14px}
+  .ride-option:hover{background:rgba(255,208,0,0.04);border-color:rgba(255,208,0,0.2)}
+  .ride-option.selected{background:rgba(255,208,0,0.08);border-color:rgba(255,208,0,0.4)}
+  .ride-emoji{font-size:24px;line-height:1}
+  .ride-info{flex:1}
+  .ride-name{font-size:14px;font-weight:600}
+  .ride-desc{font-size:11px;color:var(--muted);margin-top:2px}
+  .ride-fare{text-align:right;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:var(--yellow);min-width:70px}
+  .ride-eta{font-size:11px;color:var(--muted);text-align:right}
+  .surge-row{display:flex;gap:8px;flex-wrap:wrap}
+  .surge-chip{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace;cursor:pointer;border:1px solid transparent;transition:all .15s;background:rgba(255,255,255,0.04);color:var(--muted)}
+  .breakdown-row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);color:#94a3b8}
+  .breakdown-row .bval{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)}
+  .total-row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:14px 18px;background:rgba(255,208,0,0.08);border:1px solid rgba(255,208,0,0.2);border-radius:12px}
+  .total-row .tlabel{font-size:14px;font-weight:600}
+  .total-row .tval{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--yellow)}
+  .disclaimer{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5}
+  .status-msg{font-size:12px;text-align:center;padding:8px;display:none}
+  .status-msg.show{display:block}
+  .status-msg.error{color:var(--red)}
+  .status-msg.loading{color:var(--yellow)}
+  .empty-fares{text-align:center;padding:30px 20px;color:var(--muted);font-size:13px}
+  .empty-fares .ef-icon{font-size:36px;margin-bottom:10px;opacity:.5}
+  .powered-by{display:flex;gap:12px;align-items:center;font-size:11px;color:var(--muted)}
+  .powered-by a{color:var(--muted);text-decoration:none}
+  .powered-by a:hover{color:var(--yellow)}
+  .pb-sep{opacity:.3}
+  .leaflet-tile{filter:brightness(.65) saturate(.4) hue-rotate(5deg)}
+  .leaflet-container{background:#1a1a2e}
+</style>
+</head>
+<body>
 
-const rideTypes = [
-  { id: "ubergo", name: "UberGo", emoji: "🚗", basefare: 30, perKm: 12, perMin: 1.5, desc: "Affordable compact rides", capacity: 4 },
-  { id: "ubermoto", name: "Moto", emoji: "🏍️", basefare: 15, perKm: 7, perMin: 1, desc: "Beat traffic on 2 wheels", capacity: 1 },
-  { id: "uberauto", name: "Auto", emoji: "🛺", basefare: 20, perKm: 9, perMin: 1.2, desc: "Affordable auto rides", capacity: 3 },
-  { id: "uberxl", name: "UberXL", emoji: "🚙", basefare: 60, perKm: 18, perMin: 2, desc: "Larger vehicles for groups", capacity: 6 },
-  { id: "uberblack", name: "Black", emoji: "🖤", basefare: 100, perKm: 28, perMin: 3, desc: "Premium luxury rides", capacity: 4 },
-  { id: "ubercomfort", name: "Comfort", emoji: "✨", basefare: 75, perKm: 22, perMin: 2.5, desc: "Extra legroom & top drivers", capacity: 4 },
-];
+<div class="hero-bg">
+  <div class="grid-lines"></div>
+  <div class="glow-orb"></div>
+  <!-- Auto Rickshaw SVG illustration -->
+  <svg viewBox="0 0 420 290" xmlns="http://www.w3.org/2000/svg">
+    <!-- Body -->
+    <rect x="55" y="75" width="235" height="125" rx="32" fill="#FFD000"/>
+    <!-- Roof -->
+    <ellipse cx="172" cy="75" rx="118" ry="24" fill="#FFD000"/>
+    <rect x="75" y="62" width="194" height="15" rx="7" fill="rgba(0,0,0,0.25)"/>
+    <!-- Windshield -->
+    <rect x="258" y="88" width="52" height="65" rx="9" fill="rgba(160,230,255,0.25)" stroke="#FFD000" stroke-width="2"/>
+    <line x1="284" y1="88" x2="284" y2="153" stroke="#FFD000" stroke-width="1.5" opacity=".4"/>
+    <!-- Front nose -->
+    <path d="M308 96 Q375 112 375 156 L308 156Z" fill="#FFD000" opacity=".85"/>
+    <!-- Headlight -->
+    <circle cx="368" cy="150" r="11" fill="#fffde0" stroke="#cc9900" stroke-width="2"/>
+    <circle cx="368" cy="150" r="5" fill="#fff"/>
+    <!-- Side panel window -->
+    <rect x="68" y="93" width="88" height="55" rx="12" fill="rgba(160,230,255,0.18)" stroke="#FFD000" stroke-width="1.5"/>
+    <!-- Passenger silhouette -->
+    <ellipse cx="95" cy="105" rx="11" ry="13" fill="rgba(0,0,0,0.3)"/>
+    <rect x="84" y="116" width="22" height="20" rx="4" fill="rgba(0,0,0,0.2)"/>
+    <!-- Driver silhouette -->
+    <ellipse cx="300" cy="106" rx="13" ry="16" fill="rgba(0,0,0,0.35)"/>
+    <rect x="287" y="118" width="26" height="22" rx="4" fill="rgba(0,0,0,0.28)"/>
+    <!-- Side stripe -->
+    <rect x="55" y="173" width="310" height="14" rx="4" fill="rgba(0,0,0,0.18)"/>
+    <!-- Underbody -->
+    <rect x="70" y="186" width="280" height="20" rx="8" fill="rgba(0,0,0,0.15)"/>
+    <!-- Wheels -->
+    <circle cx="118" cy="222" r="34" fill="#2a2a2a"/>
+    <circle cx="118" cy="222" r="24" fill="#444"/>
+    <circle cx="118" cy="222" r="10" fill="#FFD000"/>
+    <line x1="118" y1="198" x2="118" y2="246" stroke="#FFD000" stroke-width="3"/>
+    <line x1="94" y1="222" x2="142" y2="222" stroke="#FFD000" stroke-width="3"/>
+    <line x1="101" y1="205" x2="135" y2="239" stroke="#FFD000" stroke-width="2.5"/>
+    <line x1="101" y1="239" x2="135" y2="205" stroke="#FFD000" stroke-width="2.5"/>
+    <circle cx="320" cy="222" r="34" fill="#2a2a2a"/>
+    <circle cx="320" cy="224" r="24" fill="#444"/>
+    <circle cx="320" cy="222" r="10" fill="#FFD000"/>
+    <line x1="320" y1="198" x2="320" y2="246" stroke="#FFD000" stroke-width="3"/>
+    <line x1="296" y1="222" x2="344" y2="222" stroke="#FFD000" stroke-width="3"/>
+    <line x1="303" y1="205" x2="337" y2="239" stroke="#FFD000" stroke-width="2.5"/>
+    <line x1="303" y1="239" x2="337" y2="205" stroke="#FFD000" stroke-width="2.5"/>
+    <!-- Exhaust pipe -->
+    <rect x="42" y="198" width="16" height="9" rx="3" fill="#888"/>
+    <ellipse cx="36" cy="202" rx="12" ry="6" fill="rgba(180,180,180,0.3)"/>
+    <!-- Meter box -->
+    <rect x="165" y="93" width="44" height="28" rx="6" fill="rgba(0,0,0,0.45)"/>
+    <rect x="168" y="96" width="38" height="16" rx="4" fill="#FFD000" opacity=".25"/>
+    <!-- Roof bar -->
+    <rect x="88" y="55" width="168" height="7" rx="3.5" fill="#cc9900"/>
+    <!-- Rear light -->
+    <circle cx="58" cy="154" r="9" fill="rgba(255,100,50,0.7)"/>
+    <!-- Licence plate -->
+    <rect x="100" y="200" width="68" height="16" rx="3" fill="#fff" opacity=".85"/>
+    <rect x="103" y="203" width="62" height="10" rx="2" fill="#003580"/>
+  </svg>
+</div>
 
-const surgeMultipliers = [
-  { label: "Normal", value: 1.0, color: "#22c55e" },
-  { label: "1.2x", value: 1.2, color: "#facc15" },
-  { label: "1.5x", value: 1.5, color: "#f97316" },
-  { label: "2.0x", value: 2.0, color: "#ef4444" },
-  { label: "2.5x", value: 2.5, color: "#dc2626" },
-];
+<div class="container">
+  <header>
+    <div class="logo-pill">UBER</div>
+    <div>
+      <div class="header-title">Fare Estimator</div>
+      <div class="header-sub">INDIA · REAL-TIME ROUTE DATA</div>
+    </div>
+    <div class="header-badge"><div class="dot"></div> Live API</div>
+  </header>
 
-function estimateFare(ride, distanceKm, durationMin, surge) {
-  const base = ride.basefare + ride.perKm * distanceKm + ride.perMin * durationMin;
-  return Math.round(base * surge);
-}
-
-function FareBar({ label, value, max, color }) {
-  const pct = Math.min((value / max) * 100, 100);
-  return (
-    <div style={{ marginBottom: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8", marginBottom: 3 }}>
-        <span>{label}</span>
-        <span style={{ color, fontWeight: 700 }}>₹{value}</span>
+  <div class="main-grid">
+    <div class="col-left">
+      <div class="card">
+        <div class="card-label"><span>📍</span> Your Route</div>
+        <div style="position:relative">
+          <div class="input-group">
+            <div class="input-icon pickup"></div>
+            <input type="text" id="pickupInput" placeholder="Pickup location..." autocomplete="off"/>
+            <div class="suggestions" id="pickupSug"></div>
+          </div>
+          <div class="route-line"></div>
+          <div class="input-group">
+            <div class="input-icon drop"></div>
+            <input type="text" id="dropInput" placeholder="Drop location..." autocomplete="off"/>
+            <div class="suggestions" id="dropSug"></div>
+          </div>
+        </div>
+        <div class="status-msg" id="statusMsg"></div>
+        <button class="btn-estimate" id="estimateBtn" onclick="calculateFare()">
+          <div class="spinner" id="btnSpinner"></div>
+          <span id="btnText">Get Fare Estimate →</span>
+        </button>
       </div>
-      <div style={{ background: "#1e293b", borderRadius: 4, height: 6, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.6s cubic-bezier(.4,0,.2,1)" }} />
+
+      <div class="trip-strip" id="tripStrip">
+        <div class="trip-stat"><div class="val" id="distVal">—</div><div class="lbl">Distance</div></div>
+        <div class="trip-divider"></div>
+        <div class="trip-stat"><div class="val" id="durVal">—</div><div class="lbl">Duration</div></div>
+        <div class="trip-divider"></div>
+        <div class="trip-stat"><div class="val" id="routeVal">OSM</div><div class="lbl">Route</div></div>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="map-placeholder" id="mapPlaceholder">
+          <div class="map-icon">🗺️</div>
+          <div>Enter route to see live map</div>
+          <div style="font-size:11px;opacity:.5;margin-top:4px">Powered by OpenStreetMap + OSRM</div>
+        </div>
+        <div id="map"></div>
+      </div>
+
+      <div class="powered-by">
+        <span>🗺️ <a href="https://nominatim.openstreetmap.org" target="_blank">Nominatim OSM</a></span>
+        <span class="pb-sep">·</span>
+        <span>🚦 <a href="http://project-osrm.org" target="_blank">OSRM</a></span>
+        <span class="pb-sep">·</span>
+        <span>🌿 Free &amp; No API Key</span>
       </div>
     </div>
-  );
-}
 
-export default function App() {
-  const [distance, setDistance] = useState(8);
-  const [duration, setDuration] = useState(22);
-  const [surge, setSurge] = useState(1.0);
-  const [selected, setSelected] = useState("ubergo");
-  const [animKey, setAnimKey] = useState(0);
+    <div class="col-right">
+      <div class="card">
+        <div class="card-label"><span>⚡</span> Surge Pricing</div>
+        <div class="surge-row" id="surgeRow"></div>
+        <div id="surgeWarning" style="display:none;margin-top:10px;padding:8px 12px;background:rgba(239,68,68,0.08);border-radius:8px;border:1px solid rgba(239,68,68,0.15);font-size:12px;color:#fca5a5"></div>
+      </div>
 
-  const fares = rideTypes.map((r) => ({ ...r, fare: estimateFare(r, distance, duration, surge) }));
-  const maxFare = Math.max(...fares.map((f) => f.fare));
-  const selectedRide = fares.find((r) => r.id === selected);
-
-  useEffect(() => {
-    setAnimKey((k) => k + 1);
-  }, [distance, duration, surge]);
-
-  const surgeInfo = surgeMultipliers.find((s) => s.value === surge) || surgeMultipliers[0];
-
-  return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #0a0a0f 0%, #0f172a 50%, #0a0a0f 100%)",
-      fontFamily: "'Sora', 'DM Sans', sans-serif",
-      color: "#f1f5f9",
-      padding: "24px 16px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-    }}>
-      {/* Google Fonts */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
-        .ride-card { transition: all 0.2s ease; cursor: pointer; }
-        .ride-card:hover { transform: translateY(-2px); }
-        .surge-btn { transition: all 0.15s ease; cursor: pointer; border: none; }
-        .surge-btn:hover { filter: brightness(1.2); transform: scale(1.05); }
-        input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px; outline: none; cursor: pointer; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #f8c31e; cursor: pointer; box-shadow: 0 0 8px rgba(248,195,30,0.5); }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-        .fade-up { animation: fadeUp 0.35s ease forwards; }
-        @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(248,195,30,0.4); } 50% { box-shadow: 0 0 0 8px rgba(248,195,30,0); } }
-        .pulse { animation: pulse 2s infinite; }
-      `}</style>
-
-      {/* Header */}
-      <div style={{ width: "100%", maxWidth: 540, marginBottom: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 12,
-            background: "linear-gradient(135deg, #f8c31e, #f97316)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 20, boxShadow: "0 4px 16px rgba(248,195,30,0.3)"
-          }}>🚕</div>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.5px" }}>Fare Estimator</div>
-            <div style={{ fontSize: 12, color: "#64748b", fontFamily: "'DM Mono', monospace" }}>UBER · INDIA</div>
+      <div class="card">
+        <div class="card-label"><span>🚗</span> Choose Ride</div>
+        <div class="rides-grid" id="ridesGrid">
+          <div class="empty-fares">
+            <div class="ef-icon">🛺</div>
+            <div>Enter your route above to see fares</div>
           </div>
         </div>
       </div>
 
-      <div style={{ width: "100%", maxWidth: 540, display: "flex", flexDirection: "column", gap: 20 }}>
-
-        {/* Trip Details Card */}
-        <div style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 20,
-          padding: "22px 24px",
-          backdropFilter: "blur(10px)",
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 20, textTransform: "uppercase" }}>Trip Details</div>
-
-          {/* Distance */}
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-              <span style={{ fontSize: 14, color: "#94a3b8" }}>Distance</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, fontWeight: 700, color: "#f8c31e" }}>{distance} km</span>
-            </div>
-            <input type="range" min="1" max="50" value={distance}
-              onChange={(e) => setDistance(+e.target.value)}
-              style={{ background: `linear-gradient(to right, #f8c31e ${(distance/50)*100}%, #1e293b ${(distance/50)*100}%)` }}
-            />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}>
-              <span>1 km</span><span>50 km</span>
-            </div>
-          </div>
-
-          {/* Duration */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-              <span style={{ fontSize: 14, color: "#94a3b8" }}>Est. Duration</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, fontWeight: 700, color: "#38bdf8" }}>{duration} min</span>
-            </div>
-            <input type="range" min="5" max="120" value={duration}
-              onChange={(e) => setDuration(+e.target.value)}
-              style={{ background: `linear-gradient(to right, #38bdf8 ${((duration-5)/115)*100}%, #1e293b ${((duration-5)/115)*100}%)` }}
-            />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}>
-              <span>5 min</span><span>120 min</span>
-            </div>
-          </div>
+      <div class="card" id="breakdownCard" style="display:none">
+        <div class="card-label"><span>🧾</span> Fare Breakdown</div>
+        <div id="breakdownRows"></div>
+        <div class="total-row">
+          <div class="tlabel">Estimated Total</div>
+          <div class="tval" id="totalFare">₹0</div>
         </div>
-
-        {/* Surge Pricing */}
-        <div style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 20,
-          padding: "22px 24px",
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 16, textTransform: "uppercase" }}>Surge Multiplier</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {surgeMultipliers.map((s) => (
-              <button key={s.value} className="surge-btn"
-                onClick={() => setSurge(s.value)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 10,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: "'DM Mono', monospace",
-                  background: surge === s.value ? s.color : "rgba(255,255,255,0.05)",
-                  color: surge === s.value ? "#0a0a0f" : s.color,
-                  border: `1px solid ${surge === s.value ? s.color : "rgba(255,255,255,0.08)"}`,
-                  boxShadow: surge === s.value ? `0 0 12px ${s.color}60` : "none",
-                }}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-          {surge > 1 && (
-            <div style={{ marginTop: 12, padding: "8px 12px", background: "rgba(239,68,68,0.08)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.15)", fontSize: 12, color: "#fca5a5" }}>
-              ⚡ High demand — fares are {surge}x the normal price
-            </div>
-          )}
-        </div>
-
-        {/* Ride Selection */}
-        <div style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 20,
-          padding: "22px 24px",
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 16, textTransform: "uppercase" }}>Choose Ride Type</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {fares.map((r) => (
-              <div key={r.id} className="ride-card"
-                onClick={() => setSelected(r.id)}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  background: selected === r.id ? "rgba(248,195,30,0.08)" : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${selected === r.id ? "rgba(248,195,30,0.35)" : "rgba(255,255,255,0.06)"}`,
-                  boxShadow: selected === r.id ? "0 0 0 1px rgba(248,195,30,0.1) inset" : "none",
-                }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 24 }}>{r.emoji}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{r.name}</div>
-                    <div style={{ fontSize: 11, color: "#64748b" }}>{r.desc} · {r.capacity} seat{r.capacity > 1 ? "s" : ""}</div>
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{
-                    fontFamily: "'DM Mono', monospace",
-                    fontWeight: 700, fontSize: 18,
-                    color: selected === r.id ? "#f8c31e" : "#e2e8f0",
-                  }}>₹{r.fare}</div>
-                  {surge > 1 && (
-                    <div style={{ fontSize: 10, color: "#ef4444", fontFamily: "'DM Mono', monospace" }}>
-                      {surge}x surge
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Fare Breakdown */}
-        {selectedRide && (
-          <div key={animKey} className="fade-up" style={{
-            background: "rgba(248,195,30,0.04)",
-            border: "1px solid rgba(248,195,30,0.15)",
-            borderRadius: 20,
-            padding: "22px 24px",
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 16, textTransform: "uppercase" }}>
-              {selectedRide.emoji} {selectedRide.name} Breakdown
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-              {[
-                { label: "Base Fare", value: `₹${selectedRide.basefare}` },
-                { label: `Distance (${distance} km × ₹${selectedRide.perKm})`, value: `₹${Math.round(distance * selectedRide.perKm)}` },
-                { label: `Time (${duration} min × ₹${selectedRide.perMin})`, value: `₹${Math.round(duration * selectedRide.perMin)}` },
-                ...(surge > 1 ? [{ label: `Surge (${surge}x)`, value: `×${surge}`, highlight: true }] : []),
-              ].map((item, i) => (
-                <div key={i} style={{
-                  display: "flex", justifyContent: "space-between",
-                  fontSize: 13, color: item.highlight ? "#ef4444" : "#94a3b8",
-                  padding: "6px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
-                }}>
-                  <span>{item.label}</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>{item.value}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "16px 20px",
-              background: "rgba(248,195,30,0.1)",
-              borderRadius: 14,
-              border: "1px solid rgba(248,195,30,0.2)",
-            }}>
-              <span style={{ fontSize: 15, fontWeight: 600 }}>Estimated Total</span>
-              <span className="pulse" style={{
-                fontFamily: "'DM Mono', monospace",
-                fontSize: 28, fontWeight: 800, color: "#f8c31e",
-                borderRadius: 8,
-              }}>₹{selectedRide.fare}</span>
-            </div>
-
-            <p style={{ fontSize: 11, color: "#475569", marginTop: 12, lineHeight: 1.6 }}>
-              * Estimate only. Final fare may vary based on actual route, traffic, tolls, and waiting time.
-            </p>
-          </div>
-        )}
-
-        {/* Comparison Chart */}
-        <div style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 20,
-          padding: "22px 24px",
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 16, textTransform: "uppercase" }}>
-            All Ride Comparison
-          </div>
-          {fares.map((r, i) => {
-            const colors = ["#f8c31e", "#38bdf8", "#a78bfa", "#34d399", "#f97316", "#f43f5e"];
-            return <FareBar key={r.id} label={`${r.emoji} ${r.name}`} value={r.fare} max={maxFare} color={colors[i % colors.length]} />;
-          })}
-        </div>
-
+        <p class="disclaimer">* Estimates only. Actual fares depend on real-time traffic, tolls & waiting time.</p>
       </div>
     </div>
-  );
+  </div>
+</div>
+
+<script>
+const NOMINATIM='https://nominatim.openstreetmap.org';
+const OSRM='https://router.project-osrm.org/route/v1/driving';
+const UA='UberFareEstimator/1.0';
+const RIDES=[
+  {id:'moto',    name:'Moto',    emoji:'🏍️',basefare:15,perKm:6,  perMin:1.0,desc:'Beat traffic fast',   cap:1},
+  {id:'auto',    name:'Auto',    emoji:'🛺', basefare:20,perKm:9,  perMin:1.2,desc:'Classic auto ride',   cap:3},
+  {id:'ubergo',  name:'UberGo', emoji:'🚗', basefare:30,perKm:12, perMin:1.5,desc:'Affordable compact',  cap:4},
+  {id:'comfort', name:'Comfort',emoji:'✨', basefare:75,perKm:22, perMin:2.5,desc:'Extra legroom',        cap:4},
+  {id:'uberxl',  name:'UberXL', emoji:'🚙', basefare:60,perKm:18, perMin:2.0,desc:'Groups & luggage',    cap:6},
+  {id:'black',   name:'Black',  emoji:'🖤', basefare:100,perKm:28,perMin:3.0,desc:'Premium luxury',      cap:4},
+];
+const SURGES=[
+  {label:'Normal',val:1.0,color:'#22d25f'},
+  {label:'1.2×',  val:1.2,color:'#a3e635'},
+  {label:'1.5×',  val:1.5,color:'#facc15'},
+  {label:'2.0×',  val:2.0,color:'#f97316'},
+  {label:'2.5×',  val:2.5,color:'#ef4444'},
+];
+let pickup=null,drop=null,distKm=0,durMin=0,surgeVal=1.0,selectedRide='auto';
+let map=null,routeLayer=null,markers=[];
+let debT={};
+
+function initSurge(){
+  const row=document.getElementById('surgeRow');
+  SURGES.forEach(s=>{
+    const el=document.createElement('div');
+    el.className='surge-chip'+(s.val===1.0?' active-surge':'');
+    el.textContent=s.label; el.dataset.val=s.val;
+    el.style.cssText=`border-color:${s.val===1.0?s.color:'transparent'};color:${s.val===1.0?'#000':s.color};background:${s.val===1.0?s.color:'rgba(255,255,255,0.04)'}`;
+    el.onclick=()=>setSurge(s.val);
+    row.appendChild(el);
+  });
 }
+function setSurge(val){
+  surgeVal=val;
+  document.querySelectorAll('.surge-chip').forEach(el=>{
+    const s=SURGES.find(x=>x.val==el.dataset.val),active=parseFloat(el.dataset.val)===val;
+    el.classList.toggle('active-surge',active);
+    el.style.background=active?s.color:'rgba(255,255,255,0.04)';
+    el.style.color=active?'#000':s.color;
+    el.style.borderColor=active?s.color:'transparent';
+  });
+  const w=document.getElementById('surgeWarning');
+  if(val>1){w.style.display='block';w.textContent=`⚡ High demand — fares are ${val}× normal price`;}
+  else w.style.display='none';
+  if(distKm>0)renderFares();
+}
+function setupAC(inputId,sugId,cb){
+  const inp=document.getElementById(inputId),sug=document.getElementById(sugId);
+  inp.addEventListener('input',()=>{
+    clearTimeout(debT[inputId]);
+    const q=inp.value.trim();
+    if(q.length<3){sug.innerHTML='';sug.style.display='none';return;}
+    debT[inputId]=setTimeout(()=>fetchSug(q,sug,inp,cb),400);
+  });
+  document.addEventListener('click',e=>{if(!inp.contains(e.target)&&!sug.contains(e.target))sug.style.display='none';});
+}
+async function fetchSug(q,sugEl,inputEl,cb){
+  try{
+    const r=await fetch(`${NOMINATIM}/search?format=json&q=${encodeURIComponent(q)}&countrycodes=in&limit=5&addressdetails=1`,{headers:{'User-Agent':UA}});
+    const d=await r.json();
+    renderSug(d,sugEl,inputEl,cb);
+  }catch(e){console.error(e);}
+}
+function renderSug(results,sugEl,inputEl,cb){
+  sugEl.innerHTML='';
+  if(!results.length){sugEl.style.display='none';return;}
+  sugEl.style.display='block';
+  results.forEach(r=>{
+    const div=document.createElement('div');
+    div.className='suggestion-item';
+    const name=r.display_name.split(',')[0];
+    const detail=r.display_name.split(',').slice(1,3).join(',').trim();
+    div.innerHTML=`<div class="sug-icon">📍</div><div><div class="sug-name">${name}</div><div class="sug-detail">${detail}</div></div>`;
+    div.onclick=()=>{inputEl.value=name+', '+detail;sugEl.style.display='none';cb({lat:parseFloat(r.lat),lon:parseFloat(r.lon),name:r.display_name});};
+    sugEl.appendChild(div);
+  });
+}
+function initMap(p,d){
+  document.getElementById('mapPlaceholder').style.display='none';
+  const mel=document.getElementById('map');mel.style.display='block';
+  if(!map){
+    map=L.map('map',{zoomControl:true,attributionControl:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
+    L.control.attribution({prefix:'<a href="https://openstreetmap.org">OSM</a>'}).addTo(map);
+  }
+  markers.forEach(m=>map.removeLayer(m));markers=[];
+  if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}
+  const pIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:#22d25f;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px #22d25f"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+  const dIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:#ff4d4d;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px #ff4d4d"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+  markers.push(L.marker([p.lat,p.lon],{icon:pIcon}).addTo(map));
+  markers.push(L.marker([d.lat,d.lon],{icon:dIcon}).addTo(map));
+}
+async function drawRoute(p,d){
+  const r=await fetch(`${OSRM}/${p.lon},${p.lat};${d.lon},${d.lat}?overview=full&geometries=geojson`);
+  const data=await r.json();
+  if(data.code!=='Ok')return null;
+  const route=data.routes[0];
+  distKm=+(route.distance/1000).toFixed(1);
+  durMin=Math.round(route.duration/60);
+  if(routeLayer)map.removeLayer(routeLayer);
+  routeLayer=L.geoJSON(route.geometry,{style:{color:'#FFD000',weight:4,opacity:.85}}).addTo(map);
+  map.fitBounds([[p.lat,p.lon],[d.lat,d.lon]],{padding:[30,30]});
+  return{distKm,durMin};
+}
+function calcFare(ride,km,min,surge){return Math.round((ride.basefare+ride.perKm*km+ride.perMin*min)*surge);}
+function renderFares(){
+  const grid=document.getElementById('ridesGrid');grid.innerHTML='';
+  const fares=RIDES.map(r=>({...r,fare:calcFare(r,distKm,durMin,surgeVal)}));
+  fares.forEach(r=>{
+    const div=document.createElement('div');
+    div.className='ride-option'+(r.id===selectedRide?' selected':'');
+    const eta=Math.round(3+Math.random()*7);
+    div.innerHTML=`<div class="ride-emoji">${r.emoji}</div><div class="ride-info"><div class="ride-name">${r.name}</div><div class="ride-desc">${r.desc} · ${r.cap} seat${r.cap>1?'s':''}</div></div><div><div class="ride-fare">₹${r.fare}</div><div class="ride-eta">${eta} min away</div></div>`;
+    div.onclick=()=>{selectedRide=r.id;document.querySelectorAll('.ride-option').forEach(e=>e.classList.remove('selected'));div.classList.add('selected');renderBreakdown(r);};
+    grid.appendChild(div);
+  });
+  const sel=fares.find(r=>r.id===selectedRide)||fares[0];
+  selectedRide=sel.id;
+  grid.children[fares.findIndex(r=>r.id===sel.id)]?.classList.add('selected');
+  renderBreakdown(sel);
+}
+function renderBreakdown(ride){
+  const fare=calcFare(ride,distKm,durMin,surgeVal);
+  const rows=[
+    {label:'Base Fare',val:`₹${ride.basefare}`},
+    {label:`Distance (${distKm} km × ₹${ride.perKm}/km)`,val:`₹${Math.round(distKm*ride.perKm)}`},
+    {label:`Time (${durMin} min × ₹${ride.perMin}/min)`,val:`₹${Math.round(durMin*ride.perMin)}`},
+    ...(surgeVal>1?[{label:`Surge (${surgeVal}×)`,val:`×${surgeVal}`,hl:true}]:[]),
+  ];
+  document.getElementById('breakdownRows').innerHTML=rows.map(r=>`<div class="breakdown-row"><span>${r.label}</span><span class="bval" style="${r.hl?'color:#ef4444':''}">${r.val}</span></div>`).join('');
+  document.getElementById('totalFare').textContent=`₹${fare}`;
+  document.getElementById('breakdownCard').style.display='block';
+}
+function setStatus(msg,type=''){const el=document.getElementById('statusMsg');el.textContent=msg;el.className='status-msg show '+type;}
+function clearStatus(){document.getElementById('statusMsg').className='status-msg';}
+async function calculateFare(){
+  if(!pickup||!drop){setStatus('Please select both pickup and drop locations from the dropdown.','error');return;}
+  const btn=document.getElementById('estimateBtn'),sp=document.getElementById('btnSpinner'),bt=document.getElementById('btnText');
+  btn.disabled=true;sp.style.display='block';bt.textContent='Calculating route...';
+  setStatus('Connecting to OpenStreetMap & OSRM routing engine...','loading');
+  try{
+    initMap(pickup,drop);
+    const result=await drawRoute(pickup,drop);
+    if(!result)throw new Error('Route not found');
+    document.getElementById('distVal').textContent=`${distKm} km`;
+    document.getElementById('durVal').textContent=`${durMin} min`;
+    document.getElementById('tripStrip').classList.add('show');
+    renderFares();clearStatus();
+  }catch(e){setStatus('Could not calculate route. Try different locations.','error');console.error(e);}
+  finally{btn.disabled=false;sp.style.display='none';bt.textContent='Get Fare Estimate →';}
+}
+initSurge();
+setupAC('pickupInput','pickupSug',loc=>{pickup=loc;});
+setupAC('dropInput','dropSug',loc=>{drop=loc;});
+document.getElementById('dropInput').addEventListener('keydown',e=>{if(e.key==='Enter')calculateFare();});
+</script>
+</body>
+</html>
+
