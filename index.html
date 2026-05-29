@@ -1,0 +1,295 @@
+import { useState, useEffect, useRef } from "react";
+
+const rideTypes = [
+  { id: "ubergo", name: "UberGo", emoji: "🚗", basefare: 30, perKm: 12, perMin: 1.5, desc: "Affordable compact rides", capacity: 4 },
+  { id: "ubermoto", name: "Moto", emoji: "🏍️", basefare: 15, perKm: 7, perMin: 1, desc: "Beat traffic on 2 wheels", capacity: 1 },
+  { id: "uberauto", name: "Auto", emoji: "🛺", basefare: 20, perKm: 9, perMin: 1.2, desc: "Affordable auto rides", capacity: 3 },
+  { id: "uberxl", name: "UberXL", emoji: "🚙", basefare: 60, perKm: 18, perMin: 2, desc: "Larger vehicles for groups", capacity: 6 },
+  { id: "uberblack", name: "Black", emoji: "🖤", basefare: 100, perKm: 28, perMin: 3, desc: "Premium luxury rides", capacity: 4 },
+  { id: "ubercomfort", name: "Comfort", emoji: "✨", basefare: 75, perKm: 22, perMin: 2.5, desc: "Extra legroom & top drivers", capacity: 4 },
+];
+
+const surgeMultipliers = [
+  { label: "Normal", value: 1.0, color: "#22c55e" },
+  { label: "1.2x", value: 1.2, color: "#facc15" },
+  { label: "1.5x", value: 1.5, color: "#f97316" },
+  { label: "2.0x", value: 2.0, color: "#ef4444" },
+  { label: "2.5x", value: 2.5, color: "#dc2626" },
+];
+
+function estimateFare(ride, distanceKm, durationMin, surge) {
+  const base = ride.basefare + ride.perKm * distanceKm + ride.perMin * durationMin;
+  return Math.round(base * surge);
+}
+
+function FareBar({ label, value, max, color }) {
+  const pct = Math.min((value / max) * 100, 100);
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8", marginBottom: 3 }}>
+        <span>{label}</span>
+        <span style={{ color, fontWeight: 700 }}>₹{value}</span>
+      </div>
+      <div style={{ background: "#1e293b", borderRadius: 4, height: 6, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.6s cubic-bezier(.4,0,.2,1)" }} />
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [distance, setDistance] = useState(8);
+  const [duration, setDuration] = useState(22);
+  const [surge, setSurge] = useState(1.0);
+  const [selected, setSelected] = useState("ubergo");
+  const [animKey, setAnimKey] = useState(0);
+
+  const fares = rideTypes.map((r) => ({ ...r, fare: estimateFare(r, distance, duration, surge) }));
+  const maxFare = Math.max(...fares.map((f) => f.fare));
+  const selectedRide = fares.find((r) => r.id === selected);
+
+  useEffect(() => {
+    setAnimKey((k) => k + 1);
+  }, [distance, duration, surge]);
+
+  const surgeInfo = surgeMultipliers.find((s) => s.value === surge) || surgeMultipliers[0];
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #0a0a0f 0%, #0f172a 50%, #0a0a0f 100%)",
+      fontFamily: "'Sora', 'DM Sans', sans-serif",
+      color: "#f1f5f9",
+      padding: "24px 16px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+    }}>
+      {/* Google Fonts */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+        .ride-card { transition: all 0.2s ease; cursor: pointer; }
+        .ride-card:hover { transform: translateY(-2px); }
+        .surge-btn { transition: all 0.15s ease; cursor: pointer; border: none; }
+        .surge-btn:hover { filter: brightness(1.2); transform: scale(1.05); }
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px; outline: none; cursor: pointer; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #f8c31e; cursor: pointer; box-shadow: 0 0 8px rgba(248,195,30,0.5); }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .fade-up { animation: fadeUp 0.35s ease forwards; }
+        @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(248,195,30,0.4); } 50% { box-shadow: 0 0 0 8px rgba(248,195,30,0); } }
+        .pulse { animation: pulse 2s infinite; }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ width: "100%", maxWidth: 540, marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: "linear-gradient(135deg, #f8c31e, #f97316)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 20, boxShadow: "0 4px 16px rgba(248,195,30,0.3)"
+          }}>🚕</div>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.5px" }}>Fare Estimator</div>
+            <div style={{ fontSize: 12, color: "#64748b", fontFamily: "'DM Mono', monospace" }}>UBER · INDIA</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ width: "100%", maxWidth: 540, display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* Trip Details Card */}
+        <div style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 20,
+          padding: "22px 24px",
+          backdropFilter: "blur(10px)",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 20, textTransform: "uppercase" }}>Trip Details</div>
+
+          {/* Distance */}
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+              <span style={{ fontSize: 14, color: "#94a3b8" }}>Distance</span>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, fontWeight: 700, color: "#f8c31e" }}>{distance} km</span>
+            </div>
+            <input type="range" min="1" max="50" value={distance}
+              onChange={(e) => setDistance(+e.target.value)}
+              style={{ background: `linear-gradient(to right, #f8c31e ${(distance/50)*100}%, #1e293b ${(distance/50)*100}%)` }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}>
+              <span>1 km</span><span>50 km</span>
+            </div>
+          </div>
+
+          {/* Duration */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+              <span style={{ fontSize: 14, color: "#94a3b8" }}>Est. Duration</span>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, fontWeight: 700, color: "#38bdf8" }}>{duration} min</span>
+            </div>
+            <input type="range" min="5" max="120" value={duration}
+              onChange={(e) => setDuration(+e.target.value)}
+              style={{ background: `linear-gradient(to right, #38bdf8 ${((duration-5)/115)*100}%, #1e293b ${((duration-5)/115)*100}%)` }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}>
+              <span>5 min</span><span>120 min</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Surge Pricing */}
+        <div style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 20,
+          padding: "22px 24px",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 16, textTransform: "uppercase" }}>Surge Multiplier</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {surgeMultipliers.map((s) => (
+              <button key={s.value} className="surge-btn"
+                onClick={() => setSurge(s.value)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: "'DM Mono', monospace",
+                  background: surge === s.value ? s.color : "rgba(255,255,255,0.05)",
+                  color: surge === s.value ? "#0a0a0f" : s.color,
+                  border: `1px solid ${surge === s.value ? s.color : "rgba(255,255,255,0.08)"}`,
+                  boxShadow: surge === s.value ? `0 0 12px ${s.color}60` : "none",
+                }}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          {surge > 1 && (
+            <div style={{ marginTop: 12, padding: "8px 12px", background: "rgba(239,68,68,0.08)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.15)", fontSize: 12, color: "#fca5a5" }}>
+              ⚡ High demand — fares are {surge}x the normal price
+            </div>
+          )}
+        </div>
+
+        {/* Ride Selection */}
+        <div style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 20,
+          padding: "22px 24px",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 16, textTransform: "uppercase" }}>Choose Ride Type</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {fares.map((r) => (
+              <div key={r.id} className="ride-card"
+                onClick={() => setSelected(r.id)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "14px 16px",
+                  borderRadius: 14,
+                  background: selected === r.id ? "rgba(248,195,30,0.08)" : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${selected === r.id ? "rgba(248,195,30,0.35)" : "rgba(255,255,255,0.06)"}`,
+                  boxShadow: selected === r.id ? "0 0 0 1px rgba(248,195,30,0.1) inset" : "none",
+                }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>{r.emoji}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{r.name}</div>
+                    <div style={{ fontSize: 11, color: "#64748b" }}>{r.desc} · {r.capacity} seat{r.capacity > 1 ? "s" : ""}</div>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{
+                    fontFamily: "'DM Mono', monospace",
+                    fontWeight: 700, fontSize: 18,
+                    color: selected === r.id ? "#f8c31e" : "#e2e8f0",
+                  }}>₹{r.fare}</div>
+                  {surge > 1 && (
+                    <div style={{ fontSize: 10, color: "#ef4444", fontFamily: "'DM Mono', monospace" }}>
+                      {surge}x surge
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Fare Breakdown */}
+        {selectedRide && (
+          <div key={animKey} className="fade-up" style={{
+            background: "rgba(248,195,30,0.04)",
+            border: "1px solid rgba(248,195,30,0.15)",
+            borderRadius: 20,
+            padding: "22px 24px",
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 16, textTransform: "uppercase" }}>
+              {selectedRide.emoji} {selectedRide.name} Breakdown
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              {[
+                { label: "Base Fare", value: `₹${selectedRide.basefare}` },
+                { label: `Distance (${distance} km × ₹${selectedRide.perKm})`, value: `₹${Math.round(distance * selectedRide.perKm)}` },
+                { label: `Time (${duration} min × ₹${selectedRide.perMin})`, value: `₹${Math.round(duration * selectedRide.perMin)}` },
+                ...(surge > 1 ? [{ label: `Surge (${surge}x)`, value: `×${surge}`, highlight: true }] : []),
+              ].map((item, i) => (
+                <div key={i} style={{
+                  display: "flex", justifyContent: "space-between",
+                  fontSize: 13, color: item.highlight ? "#ef4444" : "#94a3b8",
+                  padding: "6px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                }}>
+                  <span>{item.label}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>{item.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "16px 20px",
+              background: "rgba(248,195,30,0.1)",
+              borderRadius: 14,
+              border: "1px solid rgba(248,195,30,0.2)",
+            }}>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>Estimated Total</span>
+              <span className="pulse" style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: 28, fontWeight: 800, color: "#f8c31e",
+                borderRadius: 8,
+              }}>₹{selectedRide.fare}</span>
+            </div>
+
+            <p style={{ fontSize: 11, color: "#475569", marginTop: 12, lineHeight: 1.6 }}>
+              * Estimate only. Final fare may vary based on actual route, traffic, tolls, and waiting time.
+            </p>
+          </div>
+        )}
+
+        {/* Comparison Chart */}
+        <div style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 20,
+          padding: "22px 24px",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", letterSpacing: "0.1em", marginBottom: 16, textTransform: "uppercase" }}>
+            All Ride Comparison
+          </div>
+          {fares.map((r, i) => {
+            const colors = ["#f8c31e", "#38bdf8", "#a78bfa", "#34d399", "#f97316", "#f43f5e"];
+            return <FareBar key={r.id} label={`${r.emoji} ${r.name}`} value={r.fare} max={maxFare} color={colors[i % colors.length]} />;
+          })}
+        </div>
+
+      </div>
+    </div>
+  );
+}
