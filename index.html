@@ -3,174 +3,197 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Uber Fare Estimator · India</title>
+<title>Uber Fare Estimator · 3D</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --black:#0a0a0a; --card:#111114; --border:rgba(255,255,255,0.08);
-    --yellow:#FFD000; --green:#22d25f; --red:#ff4d4d; --text:#f0f0f0; --muted:#6b7280;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Space Grotesk',sans-serif;background:var(--black);color:var(--text);min-height:100vh;overflow-x:hidden}
-  .hero-bg{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-  .hero-bg svg{position:absolute;bottom:-20px;right:-40px;width:520px;opacity:0.065;filter:drop-shadow(0 0 60px rgba(255,208,0,0.3));animation:floatAuto 6s ease-in-out infinite}
-  @keyframes floatAuto{0%,100%{transform:translateY(0)rotate(-2deg)}50%{transform:translateY(-18px)rotate(1deg)}}
-  .grid-lines{position:absolute;inset:0;background-image:linear-gradient(rgba(255,208,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,208,0,0.03) 1px,transparent 1px);background-size:60px 60px}
-  .glow-orb{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(255,208,0,0.07) 0%,transparent 70%);bottom:-200px;right:-100px}
-  .container{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:24px 20px 60px}
-  header{display:flex;align-items:center;gap:16px;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--border)}
-  .logo-pill{background:var(--yellow);color:#000;font-weight:700;font-size:13px;letter-spacing:.06em;padding:6px 14px;border-radius:100px}
-  .header-title{font-size:22px;font-weight:700;letter-spacing:-.5px}
-  .header-sub{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px}
-  .header-badge{margin-left:auto;font-size:11px;color:var(--green);border:1px solid rgba(34,210,95,0.3);padding:4px 10px;border-radius:100px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:6px}
-  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-  .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  @media(max-width:680px){.main-grid{grid-template-columns:1fr}}
-  .col-left,.col-right{display:flex;flex-direction:column;gap:14px}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;transition:border-color .2s}
-  .card:hover{border-color:rgba(255,208,0,0.15)}
-  .card-label{font-size:10px;font-weight:600;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:6px}
-  .card-label span{font-size:14px}
-  .input-group{position:relative;margin-bottom:10px}
-  .input-group:last-child{margin-bottom:0}
-  .input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;z-index:1}
-  .input-icon.pickup{background:var(--green);box-shadow:0 0 8px var(--green)}
-  .input-icon.drop{background:var(--red);box-shadow:0 0 8px var(--red)}
-  .route-line{position:absolute;left:17.5px;top:40px;width:1px;height:20px;background:linear-gradient(var(--green),var(--red));opacity:.4}
-  input[type=text]{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:13px 14px 13px 34px;color:var(--text);font-size:14px;font-family:'Space Grotesk',sans-serif;outline:none;transition:border-color .2s,background .2s}
-  input[type=text]:focus{border-color:rgba(255,208,0,0.5);background:rgba(255,208,0,0.04)}
-  input[type=text]::placeholder{color:var(--muted)}
-  .suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a1a1f;border:1px solid var(--border);border-radius:12px;overflow:hidden;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none}
-  .suggestion-item{padding:11px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:flex-start;gap:10px;transition:background .15s}
-  .suggestion-item:hover{background:rgba(255,208,0,0.06)}
-  .sug-icon{font-size:14px;opacity:.7;flex-shrink:0;margin-top:2px}
-  .sug-name{color:var(--text);font-weight:500}
-  .sug-detail{color:var(--muted);font-size:11px;margin-top:1px}
-  .btn-estimate{width:100%;background:var(--yellow);color:#000;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:700;font-family:'Space Grotesk',sans-serif;cursor:pointer;letter-spacing:.02em;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
-  .btn-estimate:hover:not(:disabled){background:#ffe033;transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,208,0,.35)}
-  .btn-estimate:disabled{opacity:.5;cursor:not-allowed;transform:none}
-  .spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:none}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .trip-strip{display:none;background:rgba(255,208,0,0.05);border:1px solid rgba(255,208,0,0.15);border-radius:12px;padding:12px 16px;gap:20px;align-items:center;flex-wrap:wrap}
-  .trip-strip.show{display:flex}
-  .trip-stat{text-align:center}
-  .trip-stat .val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--yellow)}
-  .trip-stat .lbl{font-size:10px;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:.08em}
-  .trip-divider{width:1px;height:30px;background:var(--border)}
-  #map{border-radius:16px;overflow:hidden;height:260px;border:1px solid var(--border);display:none}
-  .map-placeholder{height:260px;border-radius:16px;background:rgba(255,255,255,0.02);border:1px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px}
-  .map-placeholder .map-icon{font-size:32px;opacity:.4}
-  .rides-grid{display:flex;flex-direction:column;gap:8px}
-  .ride-option{display:flex;align-items:center;padding:13px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:all .18s;gap:14px}
-  .ride-option:hover{background:rgba(255,208,0,0.04);border-color:rgba(255,208,0,0.2)}
-  .ride-option.selected{background:rgba(255,208,0,0.08);border-color:rgba(255,208,0,0.4)}
-  .ride-emoji{font-size:24px;line-height:1}
-  .ride-info{flex:1}
-  .ride-name{font-size:14px;font-weight:600}
-  .ride-desc{font-size:11px;color:var(--muted);margin-top:2px}
-  .ride-fare{text-align:right;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:var(--yellow);min-width:70px}
-  .ride-eta{font-size:11px;color:var(--muted);text-align:right}
-  .surge-row{display:flex;gap:8px;flex-wrap:wrap}
-  .surge-chip{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace;cursor:pointer;border:1px solid transparent;transition:all .15s;background:rgba(255,255,255,0.04);color:var(--muted)}
-  .breakdown-row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);color:#94a3b8}
-  .breakdown-row .bval{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)}
-  .total-row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:14px 18px;background:rgba(255,208,0,0.08);border:1px solid rgba(255,208,0,0.2);border-radius:12px}
-  .total-row .tlabel{font-size:14px;font-weight:600}
-  .total-row .tval{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--yellow)}
-  .disclaimer{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5}
-  .status-msg{font-size:12px;text-align:center;padding:8px;display:none}
-  .status-msg.show{display:block}
-  .status-msg.error{color:var(--red)}
-  .status-msg.loading{color:var(--yellow)}
-  .empty-fares{text-align:center;padding:30px 20px;color:var(--muted);font-size:13px}
-  .empty-fares .ef-icon{font-size:36px;margin-bottom:10px;opacity:.5}
-  .powered-by{display:flex;gap:12px;align-items:center;font-size:11px;color:var(--muted)}
-  .powered-by a{color:var(--muted);text-decoration:none}
-  .powered-by a:hover{color:var(--yellow)}
-  .pb-sep{opacity:.3}
-  .leaflet-tile{filter:brightness(.65) saturate(.4) hue-rotate(5deg)}
-  .leaflet-container{background:#1a1a2e}
+:root{--black:#07080f;--card:rgba(15,17,28,0.85);--border:rgba(255,255,255,0.08);--yellow:#FFD000;--green:#22d25f;--red:#ff4d4d;--text:#f0f0f0;--muted:#6b7280}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Space Grotesk',sans-serif;background:var(--black);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* THREE.JS CANVAS */
+#threeCanvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ROAD STRIP */
+.road-strip{position:fixed;bottom:0;left:0;right:0;height:120px;z-index:1;pointer-events:none;
+  background:linear-gradient(to top,#1a1a1a,#111,transparent);
+  border-top:2px solid rgba(255,208,0,0.15)}
+.road-lines{position:absolute;bottom:40px;left:0;right:0;height:6px;overflow:hidden}
+.road-line{position:absolute;height:4px;width:80px;background:rgba(255,208,0,0.5);border-radius:2px;animation:roadMove 1.2s linear infinite}
+@keyframes roadMove{from{transform:translateX(110vw)}to{transform:translateX(-200px)}}
+
+/* STARS BG */
+.stars{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse at 20% 50%,rgba(255,208,0,0.04) 0%,transparent 60%),
+  radial-gradient(ellipse at 80% 20%,rgba(59,130,246,0.05) 0%,transparent 50%)}
+
+/* CONTENT */
+.page{position:relative;z-index:10;max-width:1000px;margin:0 auto;padding:24px 20px 180px}
+
+/* HEADER */
+header{display:flex;align-items:center;gap:14px;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.logo-3d{
+  width:48px;height:48px;border-radius:14px;
+  background:linear-gradient(135deg,#FFD000,#ff8c00);
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  box-shadow:0 0 30px rgba(255,208,0,0.4),0 8px 20px rgba(0,0,0,0.5);
+  transform:perspective(200px) rotateX(10deg) rotateY(-10deg);
+  animation:logoFloat 3s ease-in-out infinite}
+@keyframes logoFloat{0%,100%{transform:perspective(200px) rotateX(10deg) rotateY(-10deg) translateY(0)}50%{transform:perspective(200px) rotateX(10deg) rotateY(-10deg) translateY(-4px)}}
+.header-title{font-size:24px;font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(135deg,#FFD000 0%,#fff 60%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-sub{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.header-badge{margin-left:auto;font-size:11px;color:var(--green);border:1px solid rgba(34,210,95,0.3);
+  padding:5px 12px;border-radius:100px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:6px;
+  background:rgba(34,210,95,0.05);backdrop-filter:blur(10px)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* TILT CARDS */
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  transition:transform .1s ease,box-shadow .3s ease,border-color .3s;
+  transform-style:preserve-3d;perspective:800px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05)}
+.card:hover{border-color:rgba(255,208,0,0.2);box-shadow:0 16px 48px rgba(0,0,0,0.5),0 0 40px rgba(255,208,0,0.06),inset 0 1px 0 rgba(255,255,255,0.08)}
+.card-label{font-size:10px;font-weight:600;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.card-label span{font-size:14px}
+
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:680px){.main-grid{grid-template-columns:1fr}}
+.col-left,.col-right{display:flex;flex-direction:column;gap:14px}
+
+/* INPUTS */
+.input-group{position:relative;margin-bottom:10px}
+.input-group:last-child{margin-bottom:0}
+.input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;z-index:1}
+.input-icon.pickup{background:var(--green);box-shadow:0 0 10px var(--green)}
+.input-icon.drop{background:var(--red);box-shadow:0 0 10px var(--red)}
+.route-line{position:absolute;left:18px;top:42px;width:1px;height:18px;background:linear-gradient(var(--green),var(--red));opacity:.4}
+input[type=text]{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;
+  padding:14px 14px 14px 36px;color:var(--text);font-size:14px;font-family:'Space Grotesk',sans-serif;
+  outline:none;transition:all .2s}
+input[type=text]:focus{border-color:rgba(255,208,0,0.5);background:rgba(255,208,0,0.05);box-shadow:0 0 20px rgba(255,208,0,0.1)}
+input[type=text]::placeholder{color:var(--muted)}
+.suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#13141f;border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;z-index:200;max-height:200px;overflow-y:auto;
+  box-shadow:0 12px 40px rgba(0,0,0,.7);display:none;backdrop-filter:blur(20px)}
+.suggestion-item{padding:11px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);
+  display:flex;align-items:flex-start;gap:10px;transition:background .15s}
+.suggestion-item:hover{background:rgba(255,208,0,0.07)}
+.sug-icon{font-size:13px;opacity:.7;flex-shrink:0;margin-top:2px}
+.sug-name{color:var(--text);font-weight:500}
+.sug-detail{color:var(--muted);font-size:11px;margin-top:1px}
+
+/* BUTTON */
+.btn-estimate{width:100%;background:linear-gradient(135deg,#FFD000,#ff9500);color:#000;border:none;border-radius:14px;
+  padding:16px;font-size:15px;font-weight:700;font-family:'Space Grotesk',sans-serif;cursor:pointer;
+  letter-spacing:.02em;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:6px;box-shadow:0 4px 20px rgba(255,208,0,0.3),0 0 0 0 rgba(255,208,0,0.4);
+  transform:perspective(500px) rotateX(2deg)}
+.btn-estimate:hover:not(:disabled){transform:perspective(500px) rotateX(2deg) translateY(-2px);
+  box-shadow:0 8px 30px rgba(255,208,0,0.5),0 0 60px rgba(255,208,0,0.15)}
+.btn-estimate:active:not(:disabled){transform:perspective(500px) rotateX(2deg) translateY(1px)}
+.btn-estimate:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TRIP STRIP */
+.trip-strip{display:none;background:rgba(255,208,0,0.05);border:1px solid rgba(255,208,0,0.15);
+  border-radius:14px;padding:14px 18px;gap:20px;align-items:center;flex-wrap:wrap;
+  backdrop-filter:blur(20px)}
+.trip-strip.show{display:flex}
+.trip-stat .val{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--yellow)}
+.trip-stat .lbl{font-size:10px;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:.08em}
+.trip-divider{width:1px;height:32px;background:var(--border)}
+
+/* MAP */
+#map{border-radius:16px;overflow:hidden;height:260px;border:1px solid var(--border);display:none}
+.map-placeholder{height:260px;border-radius:16px;background:rgba(255,255,255,0.02);border:1px dashed var(--border);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px}
+.map-placeholder .map-icon{font-size:36px;opacity:.4}
+
+/* RIDE OPTIONS */
+.rides-grid{display:flex;flex-direction:column;gap:8px}
+.ride-option{display:flex;align-items:center;padding:14px 16px;background:rgba(255,255,255,0.02);
+  border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:all .2s;gap:14px;
+  transform-style:preserve-3d}
+.ride-option:hover{background:rgba(255,208,0,0.05);border-color:rgba(255,208,0,0.25);
+  transform:translateX(4px) perspective(300px) rotateY(-2deg);
+  box-shadow:4px 4px 20px rgba(0,0,0,0.3),-2px 0 20px rgba(255,208,0,0.05)}
+.ride-option.selected{background:rgba(255,208,0,0.08);border-color:rgba(255,208,0,0.4);
+  box-shadow:0 0 30px rgba(255,208,0,0.1),inset 0 1px 0 rgba(255,208,0,0.1)}
+.ride-emoji{font-size:26px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5))}
+.ride-info{flex:1}
+.ride-name{font-size:14px;font-weight:600}
+.ride-desc{font-size:11px;color:var(--muted);margin-top:2px}
+.ride-fare{text-align:right;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--yellow);min-width:72px;
+  text-shadow:0 0 20px rgba(255,208,0,0.5)}
+.ride-eta{font-size:11px;color:var(--muted);text-align:right}
+
+/* SURGE */
+.surge-row{display:flex;gap:8px;flex-wrap:wrap}
+.surge-chip{padding:8px 16px;border-radius:10px;font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace;
+  cursor:pointer;border:1px solid transparent;transition:all .2s;background:rgba(255,255,255,0.04);color:var(--muted)}
+.surge-chip:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+
+/* BREAKDOWN */
+.breakdown-row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,0.04);color:#94a3b8}
+.breakdown-row .bval{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)}
+.total-row{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:16px 20px;
+  background:rgba(255,208,0,0.07);border:1px solid rgba(255,208,0,0.2);border-radius:14px;
+  box-shadow:0 0 40px rgba(255,208,0,0.08),inset 0 1px 0 rgba(255,208,0,0.1)}
+.total-row .tlabel{font-size:14px;font-weight:600}
+.total-row .tval{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:var(--yellow);
+  text-shadow:0 0 30px rgba(255,208,0,0.6)}
+.disclaimer{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6}
+
+.status-msg{font-size:12px;text-align:center;padding:8px;display:none}
+.status-msg.show{display:block}
+.status-msg.error{color:var(--red)}
+.status-msg.loading{color:var(--yellow)}
+
+.empty-fares{text-align:center;padding:30px 20px;color:var(--muted);font-size:13px}
+.empty-fares .ef-icon{font-size:40px;margin-bottom:10px;opacity:.4}
+
+.powered-by{display:flex;gap:12px;align-items:center;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.powered-by a{color:var(--muted);text-decoration:none}
+.powered-by a:hover{color:var(--yellow)}
+
+/* leaflet dark */
+.leaflet-tile{filter:brightness(.6) saturate(.4)}
+.leaflet-container{background:#10111a}
 </style>
 </head>
 <body>
 
-<div class="hero-bg">
-  <div class="grid-lines"></div>
-  <div class="glow-orb"></div>
-  <!-- Auto Rickshaw SVG illustration -->
-  <svg viewBox="0 0 420 290" xmlns="http://www.w3.org/2000/svg">
-    <!-- Body -->
-    <rect x="55" y="75" width="235" height="125" rx="32" fill="#FFD000"/>
-    <!-- Roof -->
-    <ellipse cx="172" cy="75" rx="118" ry="24" fill="#FFD000"/>
-    <rect x="75" y="62" width="194" height="15" rx="7" fill="rgba(0,0,0,0.25)"/>
-    <!-- Windshield -->
-    <rect x="258" y="88" width="52" height="65" rx="9" fill="rgba(160,230,255,0.25)" stroke="#FFD000" stroke-width="2"/>
-    <line x1="284" y1="88" x2="284" y2="153" stroke="#FFD000" stroke-width="1.5" opacity=".4"/>
-    <!-- Front nose -->
-    <path d="M308 96 Q375 112 375 156 L308 156Z" fill="#FFD000" opacity=".85"/>
-    <!-- Headlight -->
-    <circle cx="368" cy="150" r="11" fill="#fffde0" stroke="#cc9900" stroke-width="2"/>
-    <circle cx="368" cy="150" r="5" fill="#fff"/>
-    <!-- Side panel window -->
-    <rect x="68" y="93" width="88" height="55" rx="12" fill="rgba(160,230,255,0.18)" stroke="#FFD000" stroke-width="1.5"/>
-    <!-- Passenger silhouette -->
-    <ellipse cx="95" cy="105" rx="11" ry="13" fill="rgba(0,0,0,0.3)"/>
-    <rect x="84" y="116" width="22" height="20" rx="4" fill="rgba(0,0,0,0.2)"/>
-    <!-- Driver silhouette -->
-    <ellipse cx="300" cy="106" rx="13" ry="16" fill="rgba(0,0,0,0.35)"/>
-    <rect x="287" y="118" width="26" height="22" rx="4" fill="rgba(0,0,0,0.28)"/>
-    <!-- Side stripe -->
-    <rect x="55" y="173" width="310" height="14" rx="4" fill="rgba(0,0,0,0.18)"/>
-    <!-- Underbody -->
-    <rect x="70" y="186" width="280" height="20" rx="8" fill="rgba(0,0,0,0.15)"/>
-    <!-- Wheels -->
-    <circle cx="118" cy="222" r="34" fill="#2a2a2a"/>
-    <circle cx="118" cy="222" r="24" fill="#444"/>
-    <circle cx="118" cy="222" r="10" fill="#FFD000"/>
-    <line x1="118" y1="198" x2="118" y2="246" stroke="#FFD000" stroke-width="3"/>
-    <line x1="94" y1="222" x2="142" y2="222" stroke="#FFD000" stroke-width="3"/>
-    <line x1="101" y1="205" x2="135" y2="239" stroke="#FFD000" stroke-width="2.5"/>
-    <line x1="101" y1="239" x2="135" y2="205" stroke="#FFD000" stroke-width="2.5"/>
-    <circle cx="320" cy="222" r="34" fill="#2a2a2a"/>
-    <circle cx="320" cy="224" r="24" fill="#444"/>
-    <circle cx="320" cy="222" r="10" fill="#FFD000"/>
-    <line x1="320" y1="198" x2="320" y2="246" stroke="#FFD000" stroke-width="3"/>
-    <line x1="296" y1="222" x2="344" y2="222" stroke="#FFD000" stroke-width="3"/>
-    <line x1="303" y1="205" x2="337" y2="239" stroke="#FFD000" stroke-width="2.5"/>
-    <line x1="303" y1="239" x2="337" y2="205" stroke="#FFD000" stroke-width="2.5"/>
-    <!-- Exhaust pipe -->
-    <rect x="42" y="198" width="16" height="9" rx="3" fill="#888"/>
-    <ellipse cx="36" cy="202" rx="12" ry="6" fill="rgba(180,180,180,0.3)"/>
-    <!-- Meter box -->
-    <rect x="165" y="93" width="44" height="28" rx="6" fill="rgba(0,0,0,0.45)"/>
-    <rect x="168" y="96" width="38" height="16" rx="4" fill="#FFD000" opacity=".25"/>
-    <!-- Roof bar -->
-    <rect x="88" y="55" width="168" height="7" rx="3.5" fill="#cc9900"/>
-    <!-- Rear light -->
-    <circle cx="58" cy="154" r="9" fill="rgba(255,100,50,0.7)"/>
-    <!-- Licence plate -->
-    <rect x="100" y="200" width="68" height="16" rx="3" fill="#fff" opacity=".85"/>
-    <rect x="103" y="203" width="62" height="10" rx="2" fill="#003580"/>
-  </svg>
+<!-- THREE.JS CANVAS -->
+<canvas id="threeCanvas"></canvas>
+
+<!-- ROAD STRIP -->
+<div class="road-strip">
+  <div class="road-lines" id="roadLines"></div>
 </div>
 
-<div class="container">
+<div class="stars"></div>
+
+<div class="page">
   <header>
-    <div class="logo-pill">UBER</div>
+    <div class="logo-3d">🛺</div>
     <div>
-      <div class="header-title">Fare Estimator</div>
-      <div class="header-sub">INDIA · REAL-TIME ROUTE DATA</div>
+      <div class="header-title">Fare Estimator 3D</div>
+      <div class="header-sub">INDIA · REAL-TIME ROUTE · THREE.JS</div>
     </div>
     <div class="header-badge"><div class="dot"></div> Live API</div>
   </header>
 
   <div class="main-grid">
     <div class="col-left">
-      <div class="card">
+      <div class="card" data-tilt>
         <div class="card-label"><span>📍</span> Your Route</div>
         <div style="position:relative">
           <div class="input-group">
@@ -197,68 +220,390 @@
         <div class="trip-divider"></div>
         <div class="trip-stat"><div class="val" id="durVal">—</div><div class="lbl">Duration</div></div>
         <div class="trip-divider"></div>
-        <div class="trip-stat"><div class="val" id="routeVal">OSM</div><div class="lbl">Route</div></div>
+        <div class="trip-stat"><div class="val" id="routeVal">OSM</div><div class="lbl">Source</div></div>
       </div>
 
       <div class="card" style="padding:0;overflow:hidden">
         <div class="map-placeholder" id="mapPlaceholder">
           <div class="map-icon">🗺️</div>
           <div>Enter route to see live map</div>
-          <div style="font-size:11px;opacity:.5;margin-top:4px">Powered by OpenStreetMap + OSRM</div>
+          <div style="font-size:11px;opacity:.4;margin-top:4px">OpenStreetMap + OSRM</div>
         </div>
         <div id="map"></div>
       </div>
 
       <div class="powered-by">
         <span>🗺️ <a href="https://nominatim.openstreetmap.org" target="_blank">Nominatim OSM</a></span>
-        <span class="pb-sep">·</span>
-        <span>🚦 <a href="http://project-osrm.org" target="_blank">OSRM</a></span>
-        <span class="pb-sep">·</span>
-        <span>🌿 Free &amp; No API Key</span>
+        <span style="opacity:.3">·</span>
+        <span>🚦 <a href="http://project-osrm.org" target="_blank">OSRM Routing</a></span>
+        <span style="opacity:.3">·</span>
+        <span>🎲 Three.js 3D</span>
       </div>
     </div>
 
     <div class="col-right">
-      <div class="card">
-        <div class="card-label"><span>⚡</span> Surge Pricing</div>
+      <div class="card" data-tilt>
+        <div class="card-label"><span>⚡</span> Surge Multiplier</div>
         <div class="surge-row" id="surgeRow"></div>
-        <div id="surgeWarning" style="display:none;margin-top:10px;padding:8px 12px;background:rgba(239,68,68,0.08);border-radius:8px;border:1px solid rgba(239,68,68,0.15);font-size:12px;color:#fca5a5"></div>
+        <div id="surgeWarn" style="display:none;margin-top:10px;padding:8px 12px;background:rgba(239,68,68,0.08);border-radius:8px;border:1px solid rgba(239,68,68,0.15);font-size:12px;color:#fca5a5"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-tilt>
         <div class="card-label"><span>🚗</span> Choose Ride</div>
         <div class="rides-grid" id="ridesGrid">
-          <div class="empty-fares">
-            <div class="ef-icon">🛺</div>
-            <div>Enter your route above to see fares</div>
-          </div>
+          <div class="empty-fares"><div class="ef-icon">🛺</div><div>Enter your route to see fares</div></div>
         </div>
       </div>
 
-      <div class="card" id="breakdownCard" style="display:none">
+      <div class="card" id="breakdownCard" style="display:none" data-tilt>
         <div class="card-label"><span>🧾</span> Fare Breakdown</div>
         <div id="breakdownRows"></div>
         <div class="total-row">
           <div class="tlabel">Estimated Total</div>
           <div class="tval" id="totalFare">₹0</div>
         </div>
-        <p class="disclaimer">* Estimates only. Actual fares depend on real-time traffic, tolls & waiting time.</p>
+        <p class="disclaimer">* Estimates only. Final fare depends on traffic, tolls & waiting time.</p>
       </div>
     </div>
   </div>
 </div>
 
 <script>
+// ══════════════════════════════════════════════
+// THREE.JS — 3D Auto Rickshaw Scene
+// ══════════════════════════════════════════════
+(function(){
+  const canvas = document.getElementById('threeCanvas');
+  const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.set(0, 3, 10);
+  camera.lookAt(0, 1, 0);
+
+  function resize(){
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // LIGHTS
+  const ambient = new THREE.AmbientLight(0xffeedd, 0.4);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight(0xffd000, 2.0);
+  sun.position.set(5, 10, 5);
+  sun.castShadow = true;
+  scene.add(sun);
+  const fill = new THREE.PointLight(0x3b82f6, 1.5, 30);
+  fill.position.set(-8, 5, 0);
+  scene.add(fill);
+  const headlight = new THREE.PointLight(0xffffff, 3, 8);
+  scene.add(headlight); // attached to rickshaw later
+
+  // ROAD
+  const roadGeo = new THREE.PlaneGeometry(200, 8);
+  const roadMat = new THREE.MeshStandardMaterial({color:0x1a1a1a, roughness:.9, metalness:.1});
+  const road = new THREE.Mesh(roadGeo, roadMat);
+  road.rotation.x = -Math.PI/2;
+  road.position.y = -1.2;
+  road.receiveShadow = true;
+  scene.add(road);
+
+  // ROAD LANE MARKS
+  for(let i=-10;i<10;i++){
+    const lGeo = new THREE.PlaneGeometry(2, 0.1);
+    const lMat = new THREE.MeshBasicMaterial({color:0xffd000, opacity:.4, transparent:true});
+    const lane = new THREE.Mesh(lGeo, lMat);
+    lane.rotation.x = -Math.PI/2;
+    lane.position.set(i*4, -1.19, 0);
+    lane.userData.isLane = true;
+    scene.add(lane);
+  }
+
+  // BUILD AUTO RICKSHAW
+  const yelMat  = new THREE.MeshStandardMaterial({color:0xFFD000, roughness:.3, metalness:.2});
+  const blkMat  = new THREE.MeshStandardMaterial({color:0x111111, roughness:.8});
+  const grayMat = new THREE.MeshStandardMaterial({color:0x444444, roughness:.6, metalness:.3});
+  const glassMat= new THREE.MeshStandardMaterial({color:0x88ccff, transparent:true, opacity:.35, roughness:.1, metalness:.2});
+  const whtMat  = new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xffffff, emissiveIntensity:.8});
+  const redMat  = new THREE.MeshStandardMaterial({color:0xff3300, emissive:0xff2200, emissiveIntensity:.6});
+
+  const rickshaw = new THREE.Group();
+
+  // Body
+  const bodyGeo = new THREE.BoxGeometry(2.2, 1.1, 1.4);
+  const body = new THREE.Mesh(bodyGeo, yelMat);
+  body.position.set(0, 0.3, 0);
+  body.castShadow = true;
+  rickshaw.add(body);
+
+  // Roof
+  const roofGeo = new THREE.BoxGeometry(2.4, 0.12, 1.5);
+  const roof = new THREE.Mesh(roofGeo, yelMat);
+  roof.position.set(0, 0.92, 0);
+  roof.castShadow = true;
+  rickshaw.add(roof);
+
+  // Roof pillars
+  [[0.95,0.55],[0.95,-0.55],[-0.2,0.55],[-0.2,-0.55]].forEach(([x,z])=>{
+    const pg = new THREE.CylinderGeometry(0.04,0.04,0.6,6);
+    const p = new THREE.Mesh(pg, yelMat);
+    p.position.set(x,0.62,z);
+    rickshaw.add(p);
+  });
+
+  // Windshield
+  const wsGeo = new THREE.BoxGeometry(0.06, 0.7, 1.1);
+  const ws = new THREE.Mesh(wsGeo, glassMat);
+  ws.position.set(1.1, 0.4, 0);
+  rickshaw.add(ws);
+
+  // Front nose
+  const noseGeo = new THREE.BoxGeometry(0.5, 0.7, 1.2);
+  const nose = new THREE.Mesh(noseGeo, yelMat);
+  nose.position.set(1.4, 0.1, 0);
+  nose.castShadow=true;
+  rickshaw.add(nose);
+
+  // Headlights
+  [-0.4,0.4].forEach(z=>{
+    const hlG = new THREE.SphereGeometry(0.1,8,8);
+    const hl = new THREE.Mesh(hlG, whtMat);
+    hl.position.set(1.65, 0.1, z);
+    rickshaw.add(hl);
+  });
+
+  // Rear lights
+  [-0.4,0.4].forEach(z=>{
+    const rlG = new THREE.SphereGeometry(0.08,8,8);
+    const rl = new THREE.Mesh(rlG, redMat);
+    rl.position.set(-1.12, 0.2, z);
+    rickshaw.add(rl);
+  });
+
+  // Side open panels
+  [-0.71,0.71].forEach(z=>{
+    const spGeo = new THREE.BoxGeometry(1.4, 0.7, 0.04);
+    const sp = new THREE.Mesh(spGeo, yelMat);
+    sp.position.set(-0.3, 0.35, z);
+    rickshaw.add(sp);
+    // window gap
+    const wGeo = new THREE.BoxGeometry(0.7, 0.4, 0.06);
+    const w = new THREE.Mesh(wGeo, glassMat);
+    w.position.set(-0.3, 0.42, z);
+    rickshaw.add(w);
+  });
+
+  // Floor
+  const floorGeo = new THREE.BoxGeometry(2.2, 0.08, 1.4);
+  const floor = new THREE.Mesh(floorGeo, grayMat);
+  floor.position.set(0, -0.26, 0);
+  rickshaw.add(floor);
+
+  // Meter box
+  const mGeo = new THREE.BoxGeometry(0.25, 0.2, 0.15);
+  const meter = new THREE.Mesh(mGeo, blkMat);
+  meter.position.set(0.6, 0.65, 0.3);
+  rickshaw.add(meter);
+
+  // Driver (simple capsule-like)
+  const dBodyG = new THREE.CylinderGeometry(0.18,0.18,0.5,8);
+  const dBody = new THREE.Mesh(dBodyG, new THREE.MeshStandardMaterial({color:0x1a1a2e}));
+  dBody.position.set(0.7, 0.55, 0);
+  rickshaw.add(dBody);
+  const dHeadG = new THREE.SphereGeometry(0.18,8,8);
+  const dHead = new THREE.Mesh(dHeadG, new THREE.MeshStandardMaterial({color:0xc68642}));
+  dHead.position.set(0.7, 0.88, 0);
+  rickshaw.add(dHead);
+
+  // WHEELS — 3 wheels (auto rickshaw style)
+  function makeWheel(x,y,z){
+    const wg = new THREE.Group();
+    // Tire
+    const tg = new THREE.TorusGeometry(0.28,0.1,10,20);
+    const t = new THREE.Mesh(tg, blkMat);
+    t.rotation.y = Math.PI/2;
+    wg.add(t);
+    // Rim
+    const rg = new THREE.CylinderGeometry(0.18,0.18,0.08,12);
+    const r = new THREE.Mesh(rg, grayMat);
+    r.rotation.z = Math.PI/2;
+    wg.add(r);
+    // Hub
+    const hg = new THREE.SphereGeometry(0.06,8,8);
+    const h = new THREE.Mesh(hg, new THREE.MeshStandardMaterial({color:0xFFD000}));
+    wg.add(h);
+    // Spokes
+    for(let i=0;i<6;i++){
+      const sg = new THREE.CylinderGeometry(0.015,0.015,0.22,4);
+      const s = new THREE.Mesh(sg, grayMat);
+      s.rotation.z = Math.PI/2;
+      s.rotation.x = (i/6)*Math.PI;
+      wg.add(s);
+    }
+    wg.position.set(x,y,z);
+    wg.castShadow=true;
+    return wg;
+  }
+  const wheelFL = makeWheel(1.0,-0.55, 0.72);
+  const wheelFR = makeWheel(1.0,-0.55,-0.72);
+  const wheelR  = makeWheel(-0.8,-0.55, 0);
+  rickshaw.add(wheelFL,wheelFR,wheelR);
+
+  // Exhaust pipe
+  const exG = new THREE.CylinderGeometry(0.04,0.04,0.4,6);
+  const ex = new THREE.Mesh(exG, grayMat);
+  ex.rotation.z = Math.PI/2;
+  ex.position.set(-1.3,-0.05,0.5);
+  rickshaw.add(ex);
+
+  rickshaw.position.set(20, -0.88, -1);
+  rickshaw.rotation.y = Math.PI;
+  scene.add(rickshaw);
+
+  // Headlight attached to rickshaw
+  headlight.position.set(20, 0, -1);
+
+  // BUILDINGS in bg
+  const buildColors=[0x1a1a2e,0x16213e,0x0f3460,0x1a1a1a];
+  for(let i=0;i<18;i++){
+    const h=2+Math.random()*6;
+    const w=0.8+Math.random()*1.5;
+    const bGeo=new THREE.BoxGeometry(w,h,w*0.8);
+    const bMat=new THREE.MeshStandardMaterial({color:buildColors[Math.floor(Math.random()*buildColors.length)],roughness:.9});
+    const b=new THREE.Mesh(bGeo,bMat);
+    b.position.set((Math.random()-0.5)*60,h/2-1.2,(Math.random()<0.5?-5:-7)-Math.random()*3);
+    b.castShadow=true;b.receiveShadow=true;
+    scene.add(b);
+    // windows
+    for(let j=0;j<4;j++){
+      const wGeo=new THREE.PlaneGeometry(0.15,0.15);
+      const wMat=new THREE.MeshBasicMaterial({color:Math.random()>0.4?0xffd000:0x334155,opacity:Math.random()>0.4?1:0.3,transparent:true});
+      const wm=new THREE.Mesh(wGeo,wMat);
+      wm.position.set(b.position.x+(Math.random()-0.5)*w*0.6,b.position.y+(Math.random()-0.5)*h*0.6,b.position.z+(b.position.z<-5?w*0.41:-w*0.41));
+      scene.add(wm);
+    }
+  }
+
+  // STARS particles
+  const starGeo=new THREE.BufferGeometry();
+  const starVerts=[];
+  for(let i=0;i<600;i++){starVerts.push((Math.random()-0.5)*120,(Math.random()*15)+2,(Math.random()-0.5)*60);}
+  starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starVerts,3));
+  const starMat=new THREE.PointsMaterial({color:0xffffff,size:0.06,transparent:true,opacity:.8});
+  scene.add(new THREE.Points(starGeo,starMat));
+
+  // SMOKE PARTICLES
+  const smokeParticles=[];
+  function addSmoke(){
+    const sg=new THREE.SphereGeometry(0.06+Math.random()*0.08,4,4);
+    const sm=new THREE.Mesh(sg,new THREE.MeshBasicMaterial({color:0x888888,transparent:true,opacity:.35}));
+    sm.position.copy(rickshaw.position);
+    sm.position.x+=1.3;sm.position.y+=0.05;sm.position.z+=0.5;
+    sm.userData={vx:-0.01-Math.random()*0.02,vy:0.02+Math.random()*0.02,life:1};
+    scene.add(sm);smokeParticles.push(sm);
+  }
+
+  let t=0;
+  let rickshawX=20;
+  const speed=0.06;
+
+  function animate(){
+    requestAnimationFrame(animate);
+    t+=0.016;
+
+    // Drive rickshaw from right to left
+    rickshawX-=speed;
+    if(rickshawX<-25)rickshawX=25;
+    rickshaw.position.x=rickshawX;
+    headlight.position.x=rickshawX;
+
+    // Wheel spin
+    const wSpd=speed*3;
+    [wheelFL,wheelFR,wheelR].forEach(w=>{
+      const torus=w.children[0];
+      torus.rotation.x+=wSpd;
+    });
+
+    // Body bob
+    rickshaw.position.y=-0.88+Math.sin(t*8)*0.012;
+    rickshaw.rotation.z=Math.sin(t*8)*0.008;
+
+    // Smoke
+    if(Math.random()<0.18)addSmoke();
+    for(let i=smokeParticles.length-1;i>=0;i--){
+      const s=smokeParticles[i];
+      s.position.x+=s.userData.vx;
+      s.position.y+=s.userData.vy;
+      s.userData.life-=0.025;
+      s.material.opacity=s.userData.life*0.3;
+      s.scale.setScalar(1+(1-s.userData.life)*2);
+      if(s.userData.life<=0){scene.remove(s);smokeParticles.splice(i,1);}
+    }
+
+    // Animate lane marks
+    scene.children.filter(c=>c.userData.isLane).forEach(l=>{
+      l.position.x+=speed;
+      if(l.position.x>40)l.position.x=-40;
+    });
+
+    // Camera gentle sway
+    camera.position.x=Math.sin(t*0.15)*1.5;
+    camera.position.y=3+Math.sin(t*0.2)*0.3;
+    camera.lookAt(0,0.5,0);
+
+    renderer.render(scene,camera);
+  }
+  animate();
+})();
+
+// ══════════════════════════════════════════════
+// ROAD DASH LINES (CSS)
+// ══════════════════════════════════════════════
+(function(){
+  const cont=document.getElementById('roadLines');
+  for(let i=0;i<12;i++){
+    const d=document.createElement('div');
+    d.className='road-line';
+    d.style.animationDelay=`${-i*0.25}s`;
+    d.style.bottom=`${20+Math.random()*20}px`;
+    cont.appendChild(d);
+  }
+})();
+
+// ══════════════════════════════════════════════
+// CARD 3D TILT
+// ══════════════════════════════════════════════
+document.querySelectorAll('[data-tilt]').forEach(card=>{
+  card.addEventListener('mousemove',e=>{
+    const r=card.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width-0.5;
+    const y=(e.clientY-r.top)/r.height-0.5;
+    card.style.transform=`perspective(800px) rotateY(${x*10}deg) rotateX(${-y*8}deg) translateZ(6px)`;
+    card.style.boxShadow=`${-x*20}px ${y*20}px 40px rgba(0,0,0,0.4),0 0 40px rgba(255,208,0,${Math.abs(x)+Math.abs(y)*0.1})`;
+  });
+  card.addEventListener('mouseleave',()=>{
+    card.style.transform='';card.style.boxShadow='';
+  });
+});
+
+// ══════════════════════════════════════════════
+// FARE ESTIMATOR LOGIC
+// ══════════════════════════════════════════════
 const NOMINATIM='https://nominatim.openstreetmap.org';
 const OSRM='https://router.project-osrm.org/route/v1/driving';
-const UA='UberFareEstimator/1.0';
 const RIDES=[
-  {id:'moto',    name:'Moto',    emoji:'🏍️',basefare:15,perKm:6,  perMin:1.0,desc:'Beat traffic fast',   cap:1},
-  {id:'auto',    name:'Auto',    emoji:'🛺', basefare:20,perKm:9,  perMin:1.2,desc:'Classic auto ride',   cap:3},
-  {id:'ubergo',  name:'UberGo', emoji:'🚗', basefare:30,perKm:12, perMin:1.5,desc:'Affordable compact',  cap:4},
-  {id:'comfort', name:'Comfort',emoji:'✨', basefare:75,perKm:22, perMin:2.5,desc:'Extra legroom',        cap:4},
-  {id:'uberxl',  name:'UberXL', emoji:'🚙', basefare:60,perKm:18, perMin:2.0,desc:'Groups & luggage',    cap:6},
-  {id:'black',   name:'Black',  emoji:'🖤', basefare:100,perKm:28,perMin:3.0,desc:'Premium luxury',      cap:4},
+  {id:'moto',   name:'Moto',   emoji:'🏍️',basefare:15,perKm:6,  perMin:1.0,desc:'Beat traffic fast', cap:1},
+  {id:'auto',   name:'Auto',   emoji:'🛺', basefare:20,perKm:9,  perMin:1.2,desc:'Classic auto ride', cap:3},
+  {id:'ubergo', name:'UberGo', emoji:'🚗', basefare:30,perKm:12, perMin:1.5,desc:'Affordable compact',cap:4},
+  {id:'comfort',name:'Comfort',emoji:'✨', basefare:75,perKm:22, perMin:2.5,desc:'Extra legroom',      cap:4},
+  {id:'uberxl', name:'UberXL', emoji:'🚙', basefare:60,perKm:18, perMin:2.0,desc:'Groups & luggage',  cap:6},
+  {id:'black',  name:'Black',  emoji:'🖤', basefare:100,perKm:28,perMin:3.0,desc:'Premium luxury',    cap:4},
 ];
 const SURGES=[
   {label:'Normal',val:1.0,color:'#22d25f'},
@@ -268,99 +613,86 @@ const SURGES=[
   {label:'2.5×',  val:2.5,color:'#ef4444'},
 ];
 let pickup=null,drop=null,distKm=0,durMin=0,surgeVal=1.0,selectedRide='auto';
-let map=null,routeLayer=null,markers=[];
+let leafMap=null,routeLayer=null,leafMarkers=[];
 let debT={};
 
 function initSurge(){
   const row=document.getElementById('surgeRow');
   SURGES.forEach(s=>{
-    const el=document.createElement('div');
-    el.className='surge-chip'+(s.val===1.0?' active-surge':'');
-    el.textContent=s.label; el.dataset.val=s.val;
+    const el=document.createElement('div');el.className='surge-chip'+(s.val===1.0?' active-surge':'');
+    el.textContent=s.label;el.dataset.val=s.val;
     el.style.cssText=`border-color:${s.val===1.0?s.color:'transparent'};color:${s.val===1.0?'#000':s.color};background:${s.val===1.0?s.color:'rgba(255,255,255,0.04)'}`;
-    el.onclick=()=>setSurge(s.val);
-    row.appendChild(el);
+    el.onclick=()=>setSurge(s.val);row.appendChild(el);
   });
 }
-function setSurge(val){
-  surgeVal=val;
+function setSurge(v){
+  surgeVal=v;
   document.querySelectorAll('.surge-chip').forEach(el=>{
-    const s=SURGES.find(x=>x.val==el.dataset.val),active=parseFloat(el.dataset.val)===val;
-    el.classList.toggle('active-surge',active);
-    el.style.background=active?s.color:'rgba(255,255,255,0.04)';
-    el.style.color=active?'#000':s.color;
-    el.style.borderColor=active?s.color:'transparent';
+    const s=SURGES.find(x=>x.val==el.dataset.val),a=parseFloat(el.dataset.val)===v;
+    el.style.background=a?s.color:'rgba(255,255,255,0.04)';el.style.color=a?'#000':s.color;el.style.borderColor=a?s.color:'transparent';
   });
-  const w=document.getElementById('surgeWarning');
-  if(val>1){w.style.display='block';w.textContent=`⚡ High demand — fares are ${val}× normal price`;}
-  else w.style.display='none';
+  const w=document.getElementById('surgeWarn');
+  if(v>1){w.style.display='block';w.textContent=`⚡ High demand — fares are ${v}× normal`;}else w.style.display='none';
   if(distKm>0)renderFares();
 }
-function setupAC(inputId,sugId,cb){
-  const inp=document.getElementById(inputId),sug=document.getElementById(sugId);
+function setupAC(iid,sid,cb){
+  const inp=document.getElementById(iid),sug=document.getElementById(sid);
   inp.addEventListener('input',()=>{
-    clearTimeout(debT[inputId]);
-    const q=inp.value.trim();
+    clearTimeout(debT[iid]);const q=inp.value.trim();
     if(q.length<3){sug.innerHTML='';sug.style.display='none';return;}
-    debT[inputId]=setTimeout(()=>fetchSug(q,sug,inp,cb),400);
+    debT[iid]=setTimeout(()=>fetchSug(q,sug,inp,cb),400);
   });
   document.addEventListener('click',e=>{if(!inp.contains(e.target)&&!sug.contains(e.target))sug.style.display='none';});
 }
 async function fetchSug(q,sugEl,inputEl,cb){
   try{
-    const r=await fetch(`${NOMINATIM}/search?format=json&q=${encodeURIComponent(q)}&countrycodes=in&limit=5&addressdetails=1`,{headers:{'User-Agent':UA}});
-    const d=await r.json();
-    renderSug(d,sugEl,inputEl,cb);
+    const r=await fetch(`${NOMINATIM}/search?format=json&q=${encodeURIComponent(q)}&countrycodes=in&limit=5`,{headers:{'User-Agent':'UberEstimator/1.0'}});
+    const d=await r.json();renderSug(d,sugEl,inputEl,cb);
   }catch(e){console.error(e);}
 }
 function renderSug(results,sugEl,inputEl,cb){
-  sugEl.innerHTML='';
-  if(!results.length){sugEl.style.display='none';return;}
+  sugEl.innerHTML='';if(!results.length){sugEl.style.display='none';return;}
   sugEl.style.display='block';
   results.forEach(r=>{
-    const div=document.createElement('div');
-    div.className='suggestion-item';
+    const div=document.createElement('div');div.className='suggestion-item';
     const name=r.display_name.split(',')[0];
     const detail=r.display_name.split(',').slice(1,3).join(',').trim();
     div.innerHTML=`<div class="sug-icon">📍</div><div><div class="sug-name">${name}</div><div class="sug-detail">${detail}</div></div>`;
-    div.onclick=()=>{inputEl.value=name+', '+detail;sugEl.style.display='none';cb({lat:parseFloat(r.lat),lon:parseFloat(r.lon),name:r.display_name});};
+    div.onclick=()=>{inputEl.value=name+', '+detail;sugEl.style.display='none';cb({lat:parseFloat(r.lat),lon:parseFloat(r.lon)});};
     sugEl.appendChild(div);
   });
 }
-function initMap(p,d){
+function initLeafMap(p,d){
   document.getElementById('mapPlaceholder').style.display='none';
   const mel=document.getElementById('map');mel.style.display='block';
-  if(!map){
-    map=L.map('map',{zoomControl:true,attributionControl:false});
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
-    L.control.attribution({prefix:'<a href="https://openstreetmap.org">OSM</a>'}).addTo(map);
+  if(!leafMap){
+    leafMap=L.map('map',{zoomControl:true,attributionControl:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(leafMap);
   }
-  markers.forEach(m=>map.removeLayer(m));markers=[];
-  if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}
-  const pIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:#22d25f;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px #22d25f"></div>',iconSize:[14,14],iconAnchor:[7,7]});
-  const dIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:#ff4d4d;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px #ff4d4d"></div>',iconSize:[14,14],iconAnchor:[7,7]});
-  markers.push(L.marker([p.lat,p.lon],{icon:pIcon}).addTo(map));
-  markers.push(L.marker([d.lat,d.lon],{icon:dIcon}).addTo(map));
+  leafMarkers.forEach(m=>leafMap.removeLayer(m));leafMarkers=[];
+  if(routeLayer){leafMap.removeLayer(routeLayer);routeLayer=null;}
+  const pI=L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:#22d25f;border-radius:50%;border:2px solid #fff;box-shadow:0 0 10px #22d25f"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+  const dI=L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:#ff4d4d;border-radius:50%;border:2px solid #fff;box-shadow:0 0 10px #ff4d4d"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+  leafMarkers.push(L.marker([p.lat,p.lon],{icon:pI}).addTo(leafMap));
+  leafMarkers.push(L.marker([d.lat,d.lon],{icon:dI}).addTo(leafMap));
 }
 async function drawRoute(p,d){
   const r=await fetch(`${OSRM}/${p.lon},${p.lat};${d.lon},${d.lat}?overview=full&geometries=geojson`);
   const data=await r.json();
   if(data.code!=='Ok')return null;
   const route=data.routes[0];
-  distKm=+(route.distance/1000).toFixed(1);
-  durMin=Math.round(route.duration/60);
-  if(routeLayer)map.removeLayer(routeLayer);
-  routeLayer=L.geoJSON(route.geometry,{style:{color:'#FFD000',weight:4,opacity:.85}}).addTo(map);
-  map.fitBounds([[p.lat,p.lon],[d.lat,d.lon]],{padding:[30,30]});
+  distKm=+(route.distance/1000).toFixed(1);durMin=Math.round(route.duration/60);
+  if(routeLayer)leafMap.removeLayer(routeLayer);
+  routeLayer=L.geoJSON(route.geometry,{style:{color:'#FFD000',weight:4,opacity:.9}}).addTo(leafMap);
+  leafMap.fitBounds([[p.lat,p.lon],[d.lat,d.lon]],{padding:[30,30]});
   return{distKm,durMin};
 }
-function calcFare(ride,km,min,surge){return Math.round((ride.basefare+ride.perKm*km+ride.perMin*min)*surge);}
+function calcFare(r,km,min,s){return Math.round((r.basefare+r.perKm*km+r.perMin*min)*s);}
 function renderFares(){
   const grid=document.getElementById('ridesGrid');grid.innerHTML='';
   const fares=RIDES.map(r=>({...r,fare:calcFare(r,distKm,durMin,surgeVal)}));
   fares.forEach(r=>{
-    const div=document.createElement('div');
-    div.className='ride-option'+(r.id===selectedRide?' selected':'');
+    const div=document.createElement('div');div.className='ride-option'+(r.id===selectedRide?' selected':'');
     const eta=Math.round(3+Math.random()*7);
     div.innerHTML=`<div class="ride-emoji">${r.emoji}</div><div class="ride-info"><div class="ride-name">${r.name}</div><div class="ride-desc">${r.desc} · ${r.cap} seat${r.cap>1?'s':''}</div></div><div><div class="ride-fare">₹${r.fare}</div><div class="ride-eta">${eta} min away</div></div>`;
     div.onclick=()=>{selectedRide=r.id;document.querySelectorAll('.ride-option').forEach(e=>e.classList.remove('selected'));div.classList.add('selected');renderBreakdown(r);};
@@ -386,19 +718,19 @@ function renderBreakdown(ride){
 function setStatus(msg,type=''){const el=document.getElementById('statusMsg');el.textContent=msg;el.className='status-msg show '+type;}
 function clearStatus(){document.getElementById('statusMsg').className='status-msg';}
 async function calculateFare(){
-  if(!pickup||!drop){setStatus('Please select both pickup and drop locations from the dropdown.','error');return;}
+  if(!pickup||!drop){setStatus('Please select both pickup and drop from the dropdown.','error');return;}
   const btn=document.getElementById('estimateBtn'),sp=document.getElementById('btnSpinner'),bt=document.getElementById('btnText');
   btn.disabled=true;sp.style.display='block';bt.textContent='Calculating route...';
-  setStatus('Connecting to OpenStreetMap & OSRM routing engine...','loading');
+  setStatus('Connecting to OpenStreetMap routing engine...','loading');
   try{
-    initMap(pickup,drop);
+    initLeafMap(pickup,drop);
     const result=await drawRoute(pickup,drop);
-    if(!result)throw new Error('Route not found');
+    if(!result)throw new Error('Route failed');
     document.getElementById('distVal').textContent=`${distKm} km`;
     document.getElementById('durVal').textContent=`${durMin} min`;
     document.getElementById('tripStrip').classList.add('show');
     renderFares();clearStatus();
-  }catch(e){setStatus('Could not calculate route. Try different locations.','error');console.error(e);}
+  }catch(e){setStatus('Could not calculate route. Try different locations.','error');}
   finally{btn.disabled=false;sp.style.display='none';bt.textContent='Get Fare Estimate →';}
 }
 initSurge();
@@ -408,4 +740,3 @@ document.getElementById('dropInput').addEventListener('keydown',e=>{if(e.key==='
 </script>
 </body>
 </html>
-
